@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Usuarios Admin — Unidad RVII</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <header class="admin-header">
+        <div class="container admin-nav">
+            <h1>🏥 Panel de Administración — RVII HNASS</h1>
+            <div class="nav-links">
+                <a href="dashboard.html">Procedimientos</a>
+                <a href="usuarios.html" class="active">Usuarios</a>
+                <button onclick="logout()" class="btn btn-danger btn-sm">Cerrar Sesión</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container admin-content">
+        <div class="admin-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                <h3>👥 Gestión de Usuarios</h3>
+                <button class="btn btn-success" onclick="abrirModalUsuario()">+ Nuevo Usuario</button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="data-table" id="tablaUsuarios">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>DNI</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Usuario -->
+    <div class="modal-overlay" id="modalUsuario">
+        <div class="modal">
+            <h3 id="modalUsuarioTitle">Nuevo Usuario</h3>
+            <div class="alert alert-danger" id="usuarioError"></div>
+            <form id="usuarioForm">
+                <div class="form-group">
+                    <label>Nombre completo *</label>
+                    <input type="text" id="userNombre" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>DNI / Usuario *</label>
+                    <input type="text" id="userDni" class="form-control" required placeholder="Ej: 12345678">
+                </div>
+                <div class="form-group">
+                    <label>Contraseña *</label>
+                    <input type="password" id="userPassword" class="form-control" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label>Rol *</label>
+                    <select id="userRol" class="form-control" required>
+                        <option value="editor">Editor</option>
+                        <option value="admin">Administrador</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn" style="background: var(--gray-200);" onclick="cerrarModalUsuario()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="../js/firebase-config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        // Guardia de autenticación + rol
+        let currentUserRol = null;
+        let currentSession = null;
+
+        requireAuth().then(data => {
+            currentSession = data;
+            currentUserRol = data.rol;
+            if (currentUserRol !== 'admin') {
+                alert('No tienes permisos para gestionar usuarios.');
+                window.location.href = 'dashboard.html';
+                return;
+            }
+            cargarUsuarios();
+        });
+
+        // Cargar usuarios
+        function cargarUsuarios() {
+            const tbody = document.querySelector('#tablaUsuarios tbody');
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando...</td></tr>';
+
+            usuariosRef.orderBy('nombre').get().then(snapshot => {
+                tbody.innerHTML = '';
+                if (snapshot.empty) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay usuarios registrados.</td></tr>';
+                    return;
+                }
+                snapshot.forEach(doc => {
+                    const u = doc.data();
+                    const esYo = doc.id === currentSession.uid;
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${escapeHtml(u.nombre)}</td>
+                        <td>${escapeHtml(u.dni || '-')}</td>
+                        <td><span class="badge badge-${u.rol}">${u.rol}</span></td>
+                        <td><span class="badge badge-${u.activo ? 'active' : 'inactive'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
+                        <td class="actions">
+                            ${!esYo ? `
+                                <button class="btn btn-warning btn-sm" onclick="toggleUsuario('${doc.id}', ${!u.activo})">
+                                    ${u.activo ? 'Desactivar' : 'Activar'}
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="eliminarUsuario('${doc.id}')">Eliminar</button>
+                            ` : '<em>Yo</em>'}
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            });
+        }
+
+        // Modal
+        function abrirModalUsuario() {
+            document.getElementById('usuarioForm').reset();
+            document.getElementById('modalUsuarioTitle').textContent = 'Nuevo Usuario';
+            document.getElementById('usuarioError').style.display = 'none';
+            document.getElementById('modalUsuario').classList.add('active');
+        }
+
+        function cerrarModalUsuario() {
+            document.getElementById('modalUsuario').classList.remove('active');
+        }
+
+        // Crear usuario
+        document.getElementById('usuarioForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const errorAlert = document.getElementById('usuarioError');
+            errorAlert.style.display = 'none';
+
+            const nombre = document.getElementById('userNombre').value.trim();
+            const dni = document.getElementById('userDni').value.trim().toLowerCase();
+            const password = document.getElementById('userPassword').value;
+            const rol = document.getElementById('userRol').value;
+
+            if (!dni || !password || password.length < 6) {
+                errorAlert.textContent = 'Complete todos los campos. La contraseña debe tener al menos 6 caracteres.';
+                errorAlert.style.display = 'block';
+                return;
+            }
+
+            // Verificar que no exista el DNI
+            usuariosRef.where('dni', '==', dni).get().then(snapshot => {
+                if (!snapshot.empty) {
+                    throw new Error('Ya existe un usuario con ese DNI.');
+                }
+
+                return usuariosRef.add({
+                    nombre: nombre,
+                    dni: dni,
+                    password: password,
+                    rol: rol,
+                    activo: true,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            })
+            .then(() => {
+                cerrarModalUsuario();
+                cargarUsuarios();
+                alert('Usuario creado exitosamente.');
+            })
+            .catch(err => {
+                errorAlert.textContent = err.message;
+                errorAlert.style.display = 'block';
+            });
+        });
+
+        // Toggle activo/inactivo
+        function toggleUsuario(uid, nuevoEstado) {
+            if (!confirm(`¿${nuevoEstado ? 'Activar' : 'Desactivar'} este usuario?`)) return;
+            usuariosRef.doc(uid).update({ activo: nuevoEstado }).then(() => cargarUsuarios());
+        }
+
+        // Eliminar usuario
+        function eliminarUsuario(uid) {
+            if (!confirm('¿Eliminar este usuario permanentemente?')) return;
+            usuariosRef.doc(uid).delete().then(() => cargarUsuarios());
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
