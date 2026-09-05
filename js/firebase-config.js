@@ -1,15 +1,15 @@
 // ============================================
 // FIREBASE CONFIG — Solo Firestore
-// Reemplaza con tus datos de Firebase Console
+// Proyecto: hnass-radiologia-vascular
 // ============================================
 
 const firebaseConfig = {
-    apiKey: "TU_API_KEY",
-    authDomain: "TU_PROYECTO.firebaseapp.com",
-    projectId: "TU_PROYECTO",
-    storageBucket: "TU_PROYECTO.appspot.com",
-    messagingSenderId: "TU_SENDER_ID",
-    appId: "TU_APP_ID"
+    apiKey: "AIzaSyAW-6rAKWoyxaG2s2V0aquKJFNj4-ic00s",
+    authDomain: "hnass-radiologia-vascular.firebaseapp.com",
+    projectId: "hnass-radiologia-vascular",
+    storageBucket: "hnass-radiologia-vascular.firebasestorage.app",
+    messagingSenderId: "685569317021",
+    appId: "1:685569317021:web:19e3cfbd3f2f64f3bcdc74"
 };
 
 firebase.initializeApp(firebaseConfig);
