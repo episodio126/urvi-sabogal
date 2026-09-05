@@ -35,13 +35,13 @@ function cargarConfiguracion() {
     }).catch(err => console.error('Error cargando config:', err));
 }
 
-// Cargar grid de procedimientos
+// Cargar grid de procedimientos (sin índice compuesto, filtramos en cliente)
 function cargarProcedimientos() {
     const grid = document.getElementById('proceduresGrid');
 
+    // Consulta simple: solo where, sin orderBy (evita índice compuesto)
     procedimientosRef
         .where('activo', '==', true)
-        .orderBy('orden', 'asc')
         .get()
         .then(snapshot => {
             if (snapshot.empty) {
@@ -55,10 +55,16 @@ function cargarProcedimientos() {
                 return;
             }
 
-            grid.innerHTML = '';
+            // Convertir a array y ordenar por campo 'orden' en el cliente
+            const docs = [];
             snapshot.forEach(doc => {
-                const proc = doc.data();
-                const card = crearCardProcedimiento(doc.id, proc);
+                docs.push({ id: doc.id, data: doc.data() });
+            });
+            docs.sort((a, b) => (a.data.orden || 0) - (b.data.orden || 0));
+
+            grid.innerHTML = '';
+            docs.forEach(item => {
+                const card = crearCardProcedimiento(item.id, item.data);
                 grid.appendChild(card);
             });
         })
