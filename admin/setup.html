@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración Inicial — RVII HNASS</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="login-page">
+    <div class="login-card">
+        <h2>⚙️ Configuración Inicial</h2>
+        <p style="text-align: center; color: var(--gray-600); margin-bottom: 25px;">
+            Se usará una sola vez para crear el primer usuario administrador.
+        </p>
+
+        <div class="alert alert-danger" id="errorAlert"></div>
+        <div class="alert alert-success" id="successAlert"></div>
+
+        <div id="setupForm">
+            <div class="form-group">
+                <label>DNI / Usuario</label>
+                <input type="text" id="setupDni" class="form-control" value="admin" readonly>
+            </div>
+            <div class="form-group">
+                <label>Contraseña</label>
+                <input type="text" id="setupPassword" class="form-control" value="admin2026" readonly>
+            </div>
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" id="setupNombre" class="form-control" value="Administrador" readonly>
+            </div>
+            <button onclick="crearAdmin()" class="btn btn-primary">Crear Administrador</button>
+        </div>
+
+        <div id="setupDone" style="display:none; text-align:center;">
+            <p style="color: var(--success); font-weight: 600; margin-bottom: 20px;">✅ Administrador creado correctamente.</p>
+            <a href="login.html" class="btn btn-primary">Ir al Login</a>
+        </div>
+
+        <p style="text-align: center; margin-top: 20px; font-size: 0.85rem; color: var(--gray-600);">
+            Si ya configuraste el sistema, <a href="login.html" style="color: var(--essalud-blue);">ve al login</a>.
+        </p>
+    </div>
+
+    <script src="../js/firebase-config.js"></script>
+    <script>
+        const usuariosRef = db.collection('usuarios');
+
+        function crearAdmin() {
+            const errorAlert = document.getElementById('errorAlert');
+            const successAlert = document.getElementById('successAlert');
+            errorAlert.style.display = 'none';
+            successAlert.style.display = 'none';
+
+            const dni = document.getElementById('setupDni').value.trim();
+            const password = document.getElementById('setupPassword').value;
+            const nombre = document.getElementById('setupNombre').value.trim();
+
+            // Verificar si ya existe
+            usuariosRef.where('dni', '==', dni).get().then(snapshot => {
+                if (!snapshot.empty) {
+                    throw new Error('El usuario admin ya existe. Ve al login.');
+                }
+
+                return usuariosRef.add({
+                    nombre: nombre,
+                    dni: dni,
+                    password: password,
+                    rol: 'admin',
+                    activo: true,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }).then(() => {
+                document.getElementById('setupForm').style.display = 'none';
+                document.getElementById('setupDone').style.display = 'block';
+            }).catch(err => {
+                errorAlert.textContent = err.message;
+                errorAlert.style.display = 'block';
+            });
+        }
+    </script>
+</body>
+</html>
